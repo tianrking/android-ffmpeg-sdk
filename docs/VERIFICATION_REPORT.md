@@ -35,6 +35,11 @@ The resolved build dependency graph was written to `gradle/verification-metadata
 checksums. The same complete command then passed with `--offline`, so the snapshot builds under
 strict dependency verification from the captured cache without network resolution.
 
+Dependency resolution was also repeated with an empty `GRADLE_USER_HOME`. The complete task graph
+passed after downloading the artifacts again. Three Maven metadata files requested only by the
+fresh resolver were added to strict verification; their SHA-256 values were independently matched
+against the corresponding files downloaded directly from Maven Central.
+
 ```powershell
 .\scripts\verify-16kb.ps1 `
   -Apk .\sample-app\build\outputs\apk\debug\sample-app-debug.apk `
@@ -54,11 +59,11 @@ Result: **PASS** for both APKs. `zipalign -P 16` succeeded. All 20 native librar
 
 | Artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `ffmpeg-sdk-core-0.1.0-SNAPSHOT.jar` | 159,112 | `C5C934EA08A5D4F6CEF6240838ED313B79CF1453A4C6330B80096323F8AB04C6` |
-| `ffmpeg-sdk-android-release.aar` | 17,245 | `16AF1989C009705E5FC88ADA44DBC1F89A66775FC5746FFD0261E4002C0BA688` |
-| `ffmpeg-sdk-engine-ffmpegkit-release.aar` | 33,782 | `A57735083272771146468A53977A419DCDF2A89F2D2C475220396D5D337E861D` |
-| `sample-app-debug.apk` | 71,984,679 | `6937BAD727C3DD3594409609692A4BDDDEC3CFB4F0DC75A48D5B51C155E085C6` |
-| `sample-app-release-unsigned.apk` | 69,121,836 | `D9EFC6DCE298F40FC937B07B68F5B689BBE395A9345B38DB000F5534C1162D37` |
+| `ffmpeg-sdk-core-0.1.0-SNAPSHOT.jar` | 159,115 | `D47A7ED0EE332D70D30742F1CA282C49727B9C63B425A35C317D50DB4082EFE8` |
+| `ffmpeg-sdk-android-release.aar` | 17,245 | `6870C928C876AA8166F4B3863CAF5F48E511399557951549020673FB3CBC7DE1` |
+| `ffmpeg-sdk-engine-ffmpegkit-release.aar` | 33,782 | `5765C8BE74CE58FED71D306E1BE32CFCE1B9B86305F881FA6081A7BDFF5CD11F` |
+| `sample-app-debug.apk` | 72,048,519 | `53356D38E529618EE451022E66F683E6E0FBA441DD63C9C067BE552E6E64DA89` |
+| `sample-app-release-unsigned.apk` | 69,121,836 | `6F82D1A09B3DF797E481804E435AD57C352D173B1E9852B2BD0C48A76C95AD06` |
 
 These hashes identify this local snapshot only; the APKs contain an evaluation runtime and are not
 release deliverables.
