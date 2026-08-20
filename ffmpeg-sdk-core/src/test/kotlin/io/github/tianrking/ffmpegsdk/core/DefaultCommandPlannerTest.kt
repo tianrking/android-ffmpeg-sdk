@@ -18,9 +18,13 @@ class DefaultCommandPlannerTest {
             overwrite = true,
         )
         val plan = planner.plan(job, descriptor(RuntimeLicense.LGPL), capabilities())
+        val literals = plan.attempts.single().arguments
+            .filterIsInstance<CommandArgument.Literal>()
+            .map(CommandArgument.Literal::value)
 
         assertEquals("h264_mediacodec", plan.attempts.single().videoEncoder)
         assertIs<CommandArgument.Resource>(plan.attempts.single().arguments[4])
+        assertTrue(literals.windowed(2).any { it == listOf("-pix_fmt", "nv12") })
         assertTrue(plan.attempts.single().arguments.none {
             it is CommandArgument.Literal && it.value.contains("content://")
         })
@@ -110,7 +114,7 @@ class DefaultCommandPlannerTest {
     private fun descriptor(license: RuntimeLicense) = EngineDescriptor(
         name = "test",
         wrapperVersion = "1",
-        ffmpegVersion = "8.1.2",
+        ffmpegVersion = "9.0.1",
         distribution = "test",
         runtimeLicense = license,
     )

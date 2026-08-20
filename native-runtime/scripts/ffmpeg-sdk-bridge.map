@@ -1,0 +1,7 @@
+FFMPEG_SDK_BRIDGE_1.0 {
+    global:
+        JNI_OnLoad;
+        Java_io_github_tianrking_ffmpegsdk_engine_nativeffmpeg_NativeBindings_*;
+    local:
+        *;
+};

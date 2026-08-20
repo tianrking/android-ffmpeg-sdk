@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "upstream": {
+    "project": "FFmpeg",
+    "canonicalGit": "https://git.ffmpeg.org/ffmpeg.git",
+    "githubMirror": "https://github.com/FFmpeg/FFmpeg.git",
+    "tag": "n9.0.1",
+    "tagObject": "501bb49457b9dfb25d6a208832e0a6e6cd53108d",
+    "commit": "bf1b838f2ab88b4f8fd83443325c782ea0e0f7fa",
+    "source": {
+      "url": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz",
+      "sha256": "cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635",
+      "sourceDateEpoch": 1786506163
+    },
+    "signature": {
+      "url": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz.asc",
+      "sha256": "b613a00005232a1245ace7080088781ac23a916119d3e5b0d6c042368eee0177"
+    },
+    "releaseKey": {
+      "url": "https://ffmpeg.org/ffmpeg-devel.asc",
+      "sha256": "397b3becedcd5a98769967ff1ff8501ddc89f8368b8f766e4701377d7dbaabe5",
+      "fingerprint": "fcf986ea15e6e293a5644f10b4322f04d67658d8"
+    }
+  },
+  "toolchain": {
+    "androidNdk": {
+      "revision": "29.0.14206865",
+      "release": "r29",
+      "host": "linux-x86_64",
+      "url": "https://dl.google.com/android/repository/android-ndk-r29-linux.zip",
+      "sha256": "4abbbcdc842f3d4879206e9695d52709603e52dd68d3c1fff04b3b5e7a308ecf"
+    },
+    "minSdk": 24
+  },
+  "profile": {
+    "name": "core-lgpl",
+    "license": "LGPL-2.1-or-later",
+    "abis": [
+      "arm64-v8a",
+      "armeabi-v7a",
+      "x86_64",
+      "x86"
+    ],
+    "libraries": [
+      "libavcodec.so",
+      "libavdevice.so",
+      "libavfilter.so",
+      "libavformat.so",
+      "libavutil.so",
+      "libswresample.so",
+      "libswscale.so"
+    ],
+    "configureArguments": [
+      "--target-os=android",
+      "--enable-cross-compile",
+      "--enable-shared",
+      "--disable-static",
+      "--enable-ffmpeg",
+      "--disable-ffprobe",
+      "--disable-ffplay",
+      "--disable-doc",
+      "--disable-debug",
+      "--disable-autodetect",
+      "--enable-pic",
+      "--enable-jni",
+      "--enable-mediacodec",
+      "--enable-pthreads",
+      "--enable-zlib",
+      "--disable-network",
+      "--disable-iconv"
+    ],
+    "externalLibraries": [],
+    "sdkLibraries": [
+      "libffmpeg_sdk_cli.so",
+      "libffmpeg_sdk_bridge.so"
+    ],
+    "systemLibraries": [
+      "libandroid.so",
+      "libcamera2ndk.so",
+      "libc.so",
+      "libdl.so",
+      "liblog.so",
+      "libm.so",
+      "libmediandk.so",
+      "libz.so"
+    ],
+    "patches": [
+      {
+        "path": "native-runtime/patches/0001-expose-ffmpeg-runner.patch",
+        "sha256": "2d6907152d3bfcc581f36a992f73896a28cc6748cf2fa314e36d4c270790d712",
+        "purpose": "Expose one-shot fftools execution/cancellation and suppress process-global CLI signal handlers"
+      }
+    ],
+    "bridgeSources": [
+      {
+        "path": "native-runtime/src/ffmpeg_sdk_bridge.cpp",
+        "sha256": "f821be30c2b9c402ae2d5994a3b9c6695f3835a30e182882151705ebcd97a8cb"
+      },
+      {
+        "path": "native-runtime/scripts/ffmpeg-cli.mk",
+        "sha256": "61789ee9017ab1ce68039cfd600fb1aaf95208c67f2cfbf98e859fee4184cee0"
+      },
+      {
+        "path": "native-runtime/scripts/ffmpeg-sdk-cli.map",
+        "sha256": "173415f836e876215caddb3d30dfe09f50510c1353f1232f3c917569403aa031"
+      },
+      {
+        "path": "native-runtime/scripts/ffmpeg-sdk-bridge.map",
+        "sha256": "4f3732721a8b319cace430202b160e6b9efe8c751c6b015b7983c7c785d87a3a"
+      }
+    ],
+    "forbiddenConfigureArguments": [
+      "--enable-gpl",
+      "--enable-nonfree",
+      "--enable-version3"
+    ]
+  }
+}

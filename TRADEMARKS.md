@@ -13,6 +13,3 @@ guidance is published at [ffmpeg.org/legal.html](https://ffmpeg.org/legal.html).
 This repository does not use the FFmpeg logo and must not present its releases, documentation,
 websites, social accounts, or package metadata in a way that implies official FFmpeg status.
 Downstream distributors should preserve this statement when using the FFmpeg Android project name.
-
-FFmpegKitNext is a separate independent project. Its presence in build documentation or adapter
-names does not imply affiliation between FFmpeg Android, FFmpegKitNext, and the FFmpeg project.

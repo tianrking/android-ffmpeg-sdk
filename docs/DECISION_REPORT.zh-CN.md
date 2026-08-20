@@ -1,204 +1,158 @@
-# Android 上做 FFmpeg SDK：技术尽调与产品决策
+# Android 官方 FFmpeg 源码路线：技术决策与边界
 
 更新日期：2026-08-20
 
 ## 结论
 
-**FFmpeg 很适合在 Android 使用，但“不值得再做一个 FFmpeg 命令执行壳”；值得做的是一个
-Android-first 的专业媒体任务 SDK。**
+本项目只认 FFmpeg 官方上游，不再使用 FFmpegKit、FFmpegKitNext 或社区预编译 AAR：
 
-这两个判断必须同时成立：
+1. 上游源码固定为 FFmpeg 官方 `n9.0.1`；
+2. 从 ffmpeg.org 下载发布包、签名和发布公钥，先验 SHA-256 与 PGP，再编译；
+3. 使用 Google Android NDK r29 自行交叉编译四个标准 ABI；
+4. 自己维护 Android JNI/Kotlin 层，不暴露任何第三方 wrapper API；
+5. 默认只发布 `core-lgpl`，不启用 GPL、nonfree 或外部 codec 库；
+6. 每个产物记录源码、工具链、参数、补丁和二进制哈希。
 
-1. 底层继续复用 FFmpeg 与 FFmpegKitNext，不维护 FFmpeg 私有分叉；
-2. 产品价值放在 Android 资源、类型安全、任务生命周期、硬件能力、二进制供应链、合规和
-   设备证据上，而不是把字符串交给 `ffmpeg_main()`。
+这里的“官方”是源码来源和验证链官方，不是声称本 SDK 得到 FFmpeg 项目背书。本项目仍是独立
+Android 集成项目。
 
-本仓库已经按这条边界实现首个可构建基础版本。它不是“调研文档中的设想”：核心策略测试、
-三个模块编译和示例 APK 构建都进入自动化验证；但它也还不能被诚实地称为生产 GA，真实设备、
-16 KB 系统、长任务恢复和隔离进程等发布门槛仍列在 `RELEASE_GATES.md`。
+## 官方上游到底是哪一个
 
-## 为什么技术上合适
+FFmpeg 的主仓库是 `https://git.ffmpeg.org/ffmpeg.git`。GitHub 上的
+[`FFmpeg/FFmpeg`](https://github.com/FFmpeg/FFmpeg) 是 FFmpeg 组织维护并由官方网站列出的镜像，
+可用于浏览和固定 commit；发布源码和签名以
+[`ffmpeg.org/download.html`](https://ffmpeg.org/download.html) 为准。
 
-FFmpeg 的优势并不是“也能编码 H.264”，而是完整的容器、编解码、过滤、探测、字幕、流复制和
-协议组合能力。对于只做 MP4 裁剪、缩放、特效和导出的应用，Android 官方 Media3 Transformer
-已经基于 MediaCodec 和 OpenGL 提供硬件加速、API 23+ 支持及设备兼容处理；它应当是首选。
-但 Media3 的输入输出仍受平台解码器/编码器和 muxer 范围约束，默认输出也是 MP4。需要 FFprobe、
-非主流容器、复杂 filtergraph、字幕烧录、音频处理或无重编码 remux 时，FFmpeg 的覆盖面仍明显更强。
+当前锁定证据：
 
-来源：
+| 项目 | 固定值 |
+| --- | --- |
+| FFmpeg tag | `n9.0.1` |
+| tag object | `501bb49457b9dfb25d6a208832e0a6e6cd53108d` |
+| commit | `bf1b838f2ab88b4f8fd83443325c782ea0e0f7fa` |
+| 发布包 SHA-256 | `cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635` |
+| 发布公钥指纹 | `FCF986EA15E6E293A5644F10B4322F04D67658D8` |
+| NDK | `r29 / 29.0.14206865` |
+| NDK ZIP SHA-256 | `4abbbcdc842f3d4879206e9695d52709603e52dd68d3c1fff04b3b5e7a308ecf` |
+| Android API baseline | 24 |
 
-- [Media3 Transformer 总览](https://developer.android.com/media/media3/transformer)
-- [Media3 支持格式](https://developer.android.com/media/media3/transformer/supported-formats)
-- [MediaCodecList API](https://developer.android.com/reference/android/media/MediaCodecList)
+完整机器可读锁位于 `native-runtime/ffmpeg.lock.json`。
 
-性能上，FFmpeg 并不等于纯 CPU。Android 构建可以启用 MediaCodec，视频编码可显式选择
-`h264_mediacodec`、`hevc_mediacodec` 等。但硬件编码器能力是**设备事实**，不能从 ABI、Android
-版本或 FFmpeg 编译选项推断，所以 SDK 同时检查：
+## 构建链
 
-- FFmpeg 运行时是否真的编入相应 encoder；
-- 当前设备 `MediaCodecList.findEncoderForFormat()` 是否接受具体分辨率、帧率、码率和 profile；
-- 真实文件在真实设备上是否跑完并得到正确输出。
+```text
+ffmpeg.org signed tarball + signature + release key
+                     |
+                     +-- SHA-256 + pinned fingerprint + PGP verify
+                     v
+             pristine FFmpeg 9.0.1 source
+                     |
+                     +-- one audited runner patch
+                     v
+       NDK r29 cross compile, Android API 24
+          |          |          |          |
+      arm64-v8a  armeabi-v7a  x86_64      x86
+          |          |          |          |
+          +----------+----------+----------+
+                     v
+  libav*.so + libffmpeg_sdk_cli.so + libffmpeg_sdk_bridge.so
+                     |
+                     +-- SONAME / 16 KiB / RELRO / TEXTREL checks
+                     v
+          manifest.json + exact artifact SHA-256
+```
 
-当前实现完成了前两层 API，第三层需要设备实验室持续积累。
+Windows 入口是 `scripts/build-official-ffmpeg.ps1`，它调用 WSL2 中的
+`native-runtime/scripts/build-android.sh`。Linux 可直接运行 Bash 脚本。
 
-## 为什么普通移植不值得做
+## 为什么仍然有一个小补丁
 
-原 FFmpegKit 已经证明 Android/移动端存在大量需求，但它退休后留下的空缺也已经有人填：
-[FFmpegKitNext](https://github.com/arthenica/ffmpeg-kit-next) 是原作者明确标注的官方延续，支持
-Android API 24+、五类 ABI、Kotlin/Java、SAF 与本地 AAR。2026-07-28 的 8.1.1 对应 FFmpeg
-8.1.2。关键差别是它只提供源码构建，不再向 Maven Central 发布现成二进制。
+FFmpeg 官方提供稳定的 `libavcodec`、`libavformat`、`libavfilter` 等 C API，但不提供“把完整
+`ffmpeg` argv 在进程内执行”的稳定公共库函数。现有 Kotlin planner 已覆盖 remux、转码、裁剪、
+缩略图、waveform、字幕和 concat；如果完全重写这些媒体管线，就会复制大量 FFmpeg 命令前端逻辑。
 
-所以，以下项目没有足够壁垒：
+因此本项目对每次刚解压的官方源码只应用一个可审计补丁：
 
-- 再复制一套 `execute("-i ...")` API；
-- 每隔几个月上传一个不可复现的 full AAR；
-- 用“支持几百种格式”做营销，却不声明具体 build configuration；
-- 把 `content://` 临时复制成路径，当成 Android 集成完成；
-- 看到 `h264_mediacodec` 就宣称所有手机都有硬件加速。
+- 把 `main()` 导出为 `ffmpeg_sdk_execute()`；
+- 导出 `ffmpeg_sdk_cancel()`；
+- 不改 codec、muxer、demuxer、filter 或协议实现。
 
-真正的机会来自 FFmpegKitNext 的源码交付和 Android 应用之间仍缺一层产品化保证：任务模型、
-运行时治理、设备探测、失败语义、供应链证据和发行合规。
+构建脚本先校验补丁 SHA-256，再以 `--fuzz=0` 应用；任何 hunk 不能精确匹配锁定的官方发布包都
+立即失败。
 
-## 产品定义
+`libffmpeg_sdk_cli.so` 每次任务动态加载，结束后立即卸载。命令前端的私有全局状态由动态加载器重置，
+不会串到下一任务；JNI 层同时强制串行执行。版本、许可证、组件枚举和 probe 不经过命令前端，直接
+调用官方 public libav API。
 
-一句话产品：
+这不是“无修改的官方二进制”，而是“签名官方源码 + 一份公开、固定哈希的小补丁 + 自有桥接层”。
+任何 Android SDK 都必须有非官方的 Android glue；关键是把 glue 与上游源码边界说清并可复现。
 
-> 把 Android 的路径、`content://` 和 HTTPS 媒体输入变成可取消、可观测、可复现、许可证明确的
-> FFmpeg 媒体任务，并输出足以解释“为什么成功或失败”的执行证据。
+## Android ABI 与 Kotlin/Java 的关系
 
-不可替代动作不是“运行一条命令”，而是：**应用提交一个稳定 JSON 任务，SDK 选择并记录精确
-encoder、解析 Android 资源、执行、取消、探测、报告进度，并把运行时来源与许可证一起留下。**
+ABI 是 CPU 原生二进制层：
 
-首个目标客户不是简单短视频编辑器，而是：
+- `arm64-v8a`：当前主流 64 位真机；
+- `armeabi-v7a`：旧 32 位 ARM；
+- `x86_64`：主流模拟器；
+- `x86`：旧 32 位模拟器/设备。
 
-- 相机、无人机、行车记录仪、工业设备的素材接入；
-- 播客、录音、字幕、转封装与批量媒体工具；
-- 需要离线处理、格式杂、文件来源不可控的企业 Android 应用；
-- 已依赖旧 FFmpegKit，想降低迁移和供应链风险的团队。
+Kotlin/Java API 不按 ABI 写四份。Gradle/AAB 根据设备选择 `jniLibs/<abi>` 中对应 `.so`，统一通过
+`OfficialFfmpegEngine` 调 JNI。Kotlin 使用协程/Flow API；Java 使用 `FfmpegJavaSdk` 提供的
+`CompletableFuture`、事件回调和可取消 `JavaMediaTask`。应用应该使用 App Bundle 或 ABI split，
+避免把四套库塞进一个通用 APK。
 
-## 当前实现的差异化
+## 运行时能力
 
-### 1. 类型化参数，不走 shell
+`core-lgpl` 默认启用：
 
-`CommandArgument` 把 literal 和 resource 分开；资源直到 engine 层才解析。SDK 调用
-`executeWithArgumentsAsync(String[])`，避免空格、引号、分号或 URI 被二次拆词。当前 job JSON 带
-`schemaVersion = 1`，后续可以迁移而不猜旧字段含义。
+- FFmpeg 内建 demuxer、muxer、decoder、encoder、filter；
+- JNI；
+- Android MediaCodec decoder/encoder；
+- Android 官方 `content://` protocol；
+- zlib 与 pthread；
+- FFmpeg 命令前端、日志、进度和取消。
 
-### 2. Android SAF 是一等资源
+默认关闭 FFmpeg 网络协议。HTTPS 输入由 Android 平台 TLS 按显式策略下载到有大小上限的 app cache，
+再交给 native parser，避免为了 TLS 再混入一套第三方库。普通 `content://` 输入先探测独立 FD：
+可 seek 时走 FFmpeg 9 官方 protocol，不可 seek 时复制到有总量上限的 cache；字幕等要求真实文件名
+的资源始终 staging。输出先写临时文件，成功后再提交。
 
-`content://` 不是伪路径。FFmpegKit engine 使用其 SAF protocol 获取读写参数；示例用
-`OpenDocument`/`CreateDocument`，不申请传统外部存储权限。生产版仍需增加非 seekable provider 的
-自动 staging 和失败后残留文件清理。
+默认没有 `libx264`、`libx265`、`libass`、`libwebp` 等外部库。因此：
 
-### 3. 显式编码器与许可证门
+- H.264/HEVC/AV1 优先使用设备 MediaCodec encoder；
+- MPEG-4、AAC、FLAC、Opus、Vorbis、PNG、JPEG 等可使用 FFmpeg 内建实现；
+- 需要 x264/x265 或 libass 时必须新增独立 profile、独立源码锁、独立许可证/SBOM，不能偷偷塞进
+  `core-lgpl`。
 
-H.264 的硬件候选是 `h264_mediacodec`，软件候选是 `libx264`。后者会把 FFmpeg 运行时带入 GPL，
-因此 LGPL runtime 下 planner 直接移除它，不会悄悄改用 MPEG-4，也不会假装有软件 fallback。
-HEVC/`libx265` 同理。用户看到的是具体 attempt，而不是一个模糊的 `AUTO`。
+能力不是 README 猜出来的。JNI 在运行时枚举实际 encoder、decoder、filter、muxer 和 demuxer，
+planner 缺能力就提前拒绝。
 
-### 4. 引擎可替换且不传递原生二进制
+## 许可证边界
 
-核心模块不依赖 FFmpegKit；适配模块对 FFmpegKit 仅 `compileOnly`。消费者必须主动放入自己审核过的
-AAR，并声明 `RuntimeLicense` 和允许的 FFmpeg major。v0.1 默认只接受 FFmpeg 8.x，防止 9.x 在
-未回归时无声进入生产。
+FFmpeg 默认是 LGPL 2.1-or-later。`core-lgpl` 明确禁止：
 
-### 5. 设备能力与 FFmpeg 能力分开
+- `--enable-gpl`；
+- `--enable-nonfree`；
+- 隐式自动探测宿主机外部库。
 
-`MediaCodecSurvey` 枚举当前设备 codec、硬件/软件属性、profile/level、实例数，并可用完整
-`MediaFormat` 查询平台选择。FFmpeg engine 另外解析 `-encoders`/`-decoders`。两者不能相互替代。
+FFmpeg 库保持动态链接。发布时仍需提供精确对应源码、补丁、构建脚本、配置、LGPL 文本、归属与
+可重链接条件。开源许可证不等于 H.264/HEVC/AAC 等专利许可，商业发布仍需按市场和用途由法务判断。
 
-## 版本策略
+来源：[FFmpeg License and Legal Considerations](https://ffmpeg.org/legal.html)。
 
-截至 2026-08-20，FFmpeg 官方最新稳定版是 9.0.1（2026-08-12）；8.1.2 发布于
-2026-06-17。FFmpegKitNext 当前 Android 版本 8.1.1 正好使用 8.1.2，而且 FFmpeg 安全页面确认
-8.1.2 包含 CVE-2026-8461、CVE-2026-30999 修复。因此：
+## 当前证据与尚未证明的事项
 
-- **validated**：FFmpeg 8.1.2 + FFmpegKitNext 8.1.1；
-- **canary**：FFmpeg 9.0.1，等待 wrapper、构建和设备矩阵；
-- 每月检查 FFmpeg 安全页；高危解析漏洞触发 runtime 重建，而不是等 SDK API 发版；
-- tarball 必须验证 FFmpeg 官方 PGP 签名，并记录源码 commit、补丁、configure 参数、NDK、CMake、
-  依赖哈希和产物哈希。
+源码签名、NDK 锁、交叉编译参数、Kotlin 编译和静态 ELF 检查可以在本机证明。当前另有一台
+Android 13/API 33、arm64、Qualcomm PEGM10 真机证据：官方 FFmpeg 9.0.1 生成 MPEG-4/AAC，
+Kotlin SDK 经 JNI 和 `h264_mediacodec` 转为 H.264/AAC MP4，再由独立 host FFmpeg 完整解码。
+首次运行暴露默认 `yuv420p` 被设备拒绝，planner 固定 MediaCodec 输入为 NV12 后复测通过。
+这一台设备仍不能替代完整矩阵：
 
-来源：
+- 其他设备 MediaCodec 是否接受各类分辨率、profile、码率和帧率；
+- 各厂商 DocumentProvider 的 seek、撤权、满盘和提交语义；
+- 16 KiB Android 系统上的加载与执行；
+- 取消、进程死亡、前后台、30 分钟与 4K 热测试；
+- 恶意媒体、fuzz corpus 和独立安全审查。
 
-- [FFmpeg 官方下载与签名](https://www.ffmpeg.org/download.html)
-- [FFmpeg 安全公告](https://www.ffmpeg.org/security.html)
-- [FFmpegKitNext Android 构建说明](https://github.com/arthenica/ffmpeg-kit-next/tree/main/android)
-
-## Android 发行现实
-
-本项目当前选择 `minSdk 24`、`compileSdk 37`、样例 `targetSdk 36`、AGP 9.3.1、Gradle 9.5、
-JDK 17。API 37.0 已作为当前编译平台使用；target 仍固定在已经纳入本轮行为边界的 API 36，target
-37 需要单独回归。Google Play 从 2026-08-31 起要求普通新应用和更新至少 target Android 16/
-API 36；AGP 9.3 官方兼容表要求 Gradle 9.5、Build Tools 36 和 JDK 17。
-
-原生 SDK 还必须过 16 KB 页大小：当前 Android 官方规则是，target API 35+ 的 64 位应用必须支持
-16 KB；从 2027-02-01 起，不支持的更新无法发布。AGP 8.5.1+ 能正确处理未压缩 `.so` 的 ZIP
-对齐，NDK r28+ 默认生成 16 KB ELF alignment。当前稳定 NDK 是 r29；生产 runtime 应迁移到 r29，
-并对每个 ABI 的每个 `.so` 同时检查 `LOAD align >= 2**14`、`GNU_RELRO` 和 APK `zipalign -P 16`。
-
-来源：
-
-- [Google Play target API 要求](https://developer.android.com/google/play/requirements/target-sdk)
-- [Android 16 KB 页大小指南](https://developer.android.com/guide/practices/page-sizes)
-- [AGP 9.3 兼容表](https://developer.android.com/build/releases/agp-9-3-0-release-notes)
-- [Android NDK 当前版本](https://github.com/android/ndk/wiki)
-
-## 体积与运行时档位
-
-本次仅用于 API/构建验证的社区 `ffmpeg-kit-full:8.1.7` AAR，下载体积约 29.52 MiB，包含
-`arm64-v8a` 和 `x86_64`；它证明现成 artifact 能让样例构建，但它不是我们建议的生产供应链。
-其 POM 还有重复 license/developer 元数据，并漏掉 FFmpegKit 实际使用的
-`com.arthenica:smart-exception-java:0.2.1`：Debug 构建没有立刻暴露问题，R8 release 构建才以
-missing class 失败。样例为评估显式补了依赖，但这进一步说明仓库信任和源码对应关系必须独立审计。
-
-正式发行应只提供构建 recipe，不提供一个万能 full 包：
-
-| Profile | 用途 | 许可证预期 | 默认 ABI |
-| --- | --- | --- | --- |
-| `minimal-lgpl` | probe、常见容器、AAC、MediaCodec | LGPL | arm64 + x86_64 |
-| `full-lgpl` | 更多 BSD/LGPL 外部库、字幕与网络协议 | LGPL | 按需 |
-| `gpl-optin` | x264/x265 等明确 GPL 需求 | GPL | 按需 |
-
-每个 profile 都要发布独立坐标、独立 SBOM 和独立 source bundle，不能让 GPL 能力成为一个隐藏
-Gradle 开关。
-
-## 授权与专利判断
-
-FFmpeg 默认 LGPL 2.1-or-later；启用 GPL 组件后整个 FFmpeg build 适用 GPL。FFmpeg 官方合规清单
-要求避免 `--enable-gpl/--enable-nonfree`、动态链接、提供与二进制精确对应的源码和构建配置、保留
-归属信息，并检查外部库。FFmpegKitNext 自身说明默认 LGPL 3.0、启用 GPL 库后 GPL 3.0。
-
-这不是专利许可。H.264、HEVC、AAC 等在不同国家、用途和分发规模下可能涉及专利池或设备/平台
-许可；开源许可证合规不等于专利清零。商业发行必须由法务按市场和用例判断。本仓库提供工程证据，
-不提供法律结论。
-
-来源：[FFmpeg License and Legal Considerations](https://ffmpeg.org/legal.html)
-
-## 主要技术风险
-
-| 风险 | 当前处理 | GA 前还要做 |
-| --- | --- | --- |
-| 恶意媒体触发 native 漏洞 | 固定安全版本、网络默认关闭 | 独立 `isolatedProcess` worker、崩溃恢复、fuzz corpus |
-| MediaCodec 碎片化 | FFmpeg/Android 双能力探测、显式 attempt | 至少 12 台真机矩阵、热降频与长视频 |
-| `content://` 不可 seek | SAF 原生接入 | 自动探测，必要时 cache staging + 原子复制 |
-| 失败留下半成品 | 返回每次 attempt 结果 | 输出事务、清理策略、provider 合约测试 |
-| AAR 过大 | engine 不传递 runtime、ABI 限定 | 三种 profile 的真实 size/功能基线 |
-| GPL 被误带入 | planner runtime license gate | CI 扫描 configure/SBOM/符号与 POM |
-| 长任务被系统杀死 | 任务可取消 | foreground service/WorkManager 集成层与恢复 token |
-| FFmpeg API/ABI 更新 | major allow-list | 8.x/9.x 双线 CI 与 golden corpus |
-
-## Go / No-Go
-
-建议 **Go**，但只批准下面这条产品路线：
-
-- 不 fork FFmpeg；上游安全更新优先；
-- SDK 的公开 API 不暴露 FFmpegKit session 类型；
-- 默认 runtime 为最小 LGPL source build；GPL 单独坐标、单独文档；
-- 所有能力声明来自构建 manifest + 设备测试，不来自 README 想象；
-- 先做 10 个高价值 recipe（probe、remux、H.264/H.265 export、音频提取/转码、缩略图、字幕、
-  waveform、trim、concat），不追求覆盖全部 FFmpeg flags；
-- 通过 `RELEASE_GATES.md` 后才发布 `1.0.0`。
-
-如果目标只是“在 Maven 上放一个 full AAR，提供 execute(command)”，则建议 **No-Go**：既缺少壁垒，
-又把安全、许可证、专利、体积和维护压力全部接过来。
+这些继续列在 `docs/RELEASE_GATES.md`。在真机矩阵完成前，本项目仍是 engineering preview，不能把
+“源码能编译、APK 能打包”宣传成生产 GA。

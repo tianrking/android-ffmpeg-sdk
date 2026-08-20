@@ -1,0 +1,62 @@
+--- a/fftools/ffmpeg.c
++++ b/fftools/ffmpeg.c
+@@ -215,7 +215,7 @@
+     action.sa_flags = SA_RESTART;
+ #endif
+ 
+-#if HAVE_TERMIOS_H
++#if HAVE_TERMIOS_H && !defined(FFMPEG_SDK_EMBEDDED)
+     if (stdin_interaction) {
+         struct termios tty;
+         if (tcgetattr (0, &tty) == 0) {
+@@ -237,6 +237,7 @@
+     }
+ #endif
+ 
++#if !defined(FFMPEG_SDK_EMBEDDED)
+     SIGNAL(SIGINT , sigterm_handler); /* Interrupt (ANSI).    */
+     SIGNAL(SIGTERM, sigterm_handler); /* Termination (ANSI).  */
+ #ifdef SIGXCPU
+@@ -248,6 +249,7 @@
+ #if HAVE_SETCONSOLECTRLHANDLER
+     SetConsoleCtrlHandler((PHANDLER_ROUTINE) CtrlHandler, TRUE);
+ #endif
++#endif
+ }
+ 
+ /* read a key without blocking */
+@@ -978,7 +980,10 @@
+ #endif
+ }
+ 
+-int main(int argc, char **argv)
++__attribute__((visibility("default"))) int ffmpeg_sdk_execute(int argc, char **argv);
++__attribute__((visibility("default"))) void ffmpeg_sdk_cancel(void);
++
++__attribute__((visibility("default"))) int ffmpeg_sdk_execute(int argc, char **argv)
+ {
+     Scheduler *sch = NULL;
+ 
+@@ -987,7 +992,9 @@
+ 
+     init_dynload();
+ 
++#if !defined(FFMPEG_SDK_EMBEDDED)
+     setvbuf(stderr,NULL,_IONBF,0); /* win32 runtime needs this */
++#endif
+ 
+     av_log_set_flags(AV_LOG_SKIP_REPEATED);
+     parse_loglevel(argc, argv, options);
+@@ -1056,3 +1063,12 @@
+ 
+     return ret;
+ }
++
++/* Called by the SDK JNI bridge from a different thread. The runner shared object is loaded for
++ * exactly one serialized execution and unloaded afterwards, so all other fftools globals are
++ * reset by the dynamic loader before the next session. */
++__attribute__((visibility("default"))) void ffmpeg_sdk_cancel(void)
++{
++    if (!ffmpeg_exited)
++        sigterm_handler(SIGINT);
++}

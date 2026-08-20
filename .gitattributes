@@ -1,0 +1,9 @@
+*.sh text eol=lf
+*.py text eol=lf
+*.mk text eol=lf
+*.map text eol=lf
+*.patch text eol=lf whitespace=-blank-at-eol
+*.cpp text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.yml text eol=lf

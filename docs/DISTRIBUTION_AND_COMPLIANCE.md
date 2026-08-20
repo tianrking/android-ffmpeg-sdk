@@ -9,11 +9,11 @@ hidden build flag on the same coordinate.
 
 For every runtime artifact retain:
 
-- upstream FFmpeg and FFmpegKitNext commit/tag;
+- upstream FFmpeg commit/tag and signed release archive;
 - verified source archive/signature and hashes;
 - complete configure arguments and environment;
 - all patches as separate files plus a generated diff;
-- Android SDK, NDK, CMake, compiler, linker, and Nix profile versions;
+- Android SDK, NDK, compiler, and linker versions;
 - external library source revisions, licenses, and hashes;
 - ABI list, exported component list, AAR/APK hashes, and SBOM;
 - ELF page alignment, RELRO, and APK ZIP alignment reports;
@@ -49,9 +49,10 @@ commercial model, encoding/decoding direction, and expected distribution volume 
 Do not use the FFmpeg logo. State that the SDK is independent and not endorsed by FFmpeg. Review
 the final product name before publication to avoid implying official status.
 
-## Binary intake rule
+## Third-party binary intake rule (not used by `core-lgpl`)
 
-A third-party AAR is evaluation-only until all of these match:
+The official-source core does not ingest a third-party FFmpeg AAR. If a future optional profile
+ever proposes one, it is evaluation-only until all of these match:
 
 - its POM/repository points to available source;
 - source tag and binary build configuration are identified;

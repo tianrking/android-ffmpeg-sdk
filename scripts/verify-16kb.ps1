@@ -14,7 +14,15 @@ $ErrorActionPreference = "Stop"
 
 $apkPath = (Resolve-Path -LiteralPath $Apk).Path
 $sdkPath = (Resolve-Path -LiteralPath $AndroidSdkRoot).Path
-$zipalign = Join-Path $sdkPath "build-tools\$BuildToolsVersion\zipalign.exe"
+$toolSuffix = if ($IsWindows -or $PSVersionTable.PSEdition -eq "Desktop") { ".exe" } else { "" }
+$hostTag = if ($IsWindows -or $PSVersionTable.PSEdition -eq "Desktop") {
+    "windows-x86_64"
+} elseif ($IsMacOS) {
+    "darwin-x86_64"
+} else {
+    "linux-x86_64"
+}
+$zipalign = Join-Path (Join-Path (Join-Path $sdkPath "build-tools") $BuildToolsVersion) ("zipalign" + $toolSuffix)
 
 if (-not (Test-Path -LiteralPath $zipalign -PathType Leaf)) {
     throw "zipalign was not found at $zipalign"
@@ -31,10 +39,11 @@ if ([string]::IsNullOrWhiteSpace($NdkVersion)) {
     exit 0
 }
 
-$ndkRoot = Join-Path $sdkPath "ndk\$NdkVersion"
-$llvmBin = Join-Path $ndkRoot "toolchains\llvm\prebuilt\windows-x86_64\bin"
-$objdump = Join-Path $llvmBin "llvm-objdump.exe"
-$readelf = Join-Path $llvmBin "llvm-readelf.exe"
+$ndkRoot = Join-Path (Join-Path $sdkPath "ndk") $NdkVersion
+$llvmBin = Join-Path (Join-Path (Join-Path $ndkRoot "toolchains") "llvm") "prebuilt"
+$llvmBin = Join-Path (Join-Path $llvmBin $hostTag) "bin"
+$objdump = Join-Path $llvmBin ("llvm-objdump" + $toolSuffix)
+$readelf = Join-Path $llvmBin ("llvm-readelf" + $toolSuffix)
 
 foreach ($tool in @($objdump, $readelf)) {
     if (-not (Test-Path -LiteralPath $tool -PathType Leaf)) {

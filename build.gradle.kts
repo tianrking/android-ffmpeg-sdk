@@ -7,5 +7,5 @@ plugins {
 
 allprojects {
     group = "io.github.tianrking.ffmpegsdk"
-    version = "0.1.0-SNAPSHOT"
+    version = "0.2.0-SNAPSHOT"
 }

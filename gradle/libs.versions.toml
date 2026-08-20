@@ -4,16 +4,12 @@ kotlin = "2.3.20"
 coroutines = "1.11.0"
 serialization = "1.11.0"
 activity = "1.12.4"
-ffmpegkit = "8.1.7"
-smartException = "0.2.1"
 
 [libraries]
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
 androidx-activity = { module = "androidx.activity:activity", version.ref = "activity" }
-ffmpegkit-full = { module = "dev.ffmpegkit-maintained:ffmpeg-kit-full", version.ref = "ffmpegkit" }
-smart-exception = { module = "com.arthenica:smart-exception-java", version.ref = "smartException" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

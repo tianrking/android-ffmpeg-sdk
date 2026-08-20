@@ -3,7 +3,7 @@
 ## Supported line
 
 Only the latest published SDK minor and its pinned native runtime receive security fixes. The
-current development baseline is FFmpeg 8.1.2; FFmpeg 9.x is not yet a validated production line.
+current development baseline is signed FFmpeg 9.0.1 (`n9.0.1`) built with NDK r29.
 
 ## Threat model
 
@@ -11,9 +11,16 @@ Media input can be hostile. Treat container metadata, codecs, subtitles, fonts, 
 network responses, and content providers as untrusted. Native decoder bugs can corrupt the host
 application process.
 
-The current engine therefore disables network input by default, avoids shell parsing, pins allowed
-FFmpeg majors, and makes runtime provenance an application responsibility. It is not yet process
-isolated; do not use the snapshot to process adversarial media in a high-value application.
+The current engine therefore uses typed argument arrays instead of shell parsing, pins allowed
+FFmpeg majors, verifies native provenance, and bounds staging/probe/log resources. Network input
+requires both job and runtime opt-in; the enabled mode stages
+bounded HTTPS responses after scheme, host, redirect, timeout, and non-public-address checks.
+The locked native profile disables FFmpeg networking entirely.
+
+Outputs are encoded to staging storage and committed only after native success. Filesystem commit is
+same-directory, but Android content providers do not expose a universal atomic-replace primitive.
+The current adapter is also not process isolated. Do not use this snapshot to process adversarial
+media in a high-value application until the provider matrix and isolated-worker release gates pass.
 
 ## Reporting
 

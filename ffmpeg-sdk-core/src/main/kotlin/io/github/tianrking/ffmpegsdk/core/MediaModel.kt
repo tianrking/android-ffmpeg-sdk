@@ -1,5 +1,6 @@
 package io.github.tianrking.ffmpegsdk.core
 
+import java.net.URI
 import java.util.UUID
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -33,8 +34,16 @@ public sealed interface MediaReference {
     @SerialName("content_uri")
     public data class ContentUri(val uri: String) : MediaReference {
         init {
-            require(uri.startsWith("content://")) { "Expected a content:// URI" }
             require('\u0000' !in uri) { "URI must not contain NUL" }
+            // Android Uri tolerates literal spaces; encode only those before structural validation.
+            val parsed = parseUri(uri.replace(" ", "%20"), "content URI")
+            require(parsed.scheme?.equals("content", ignoreCase = true) == true &&
+                !parsed.rawAuthority.isNullOrBlank()) {
+                "Expected an absolute content:// URI with an authority"
+            }
+            require(parsed.userInfo == null && parsed.fragment == null) {
+                "Content URIs must not contain credentials or fragments"
+            }
         }
     }
 
@@ -42,27 +51,59 @@ public sealed interface MediaReference {
     @SerialName("network_url")
     public data class NetworkUrl(val url: String) : MediaReference {
         init {
-            require(url.startsWith("https://") || url.startsWith("http://")) {
-                "Only HTTP(S) network inputs are supported"
-            }
             require('\u0000' !in url) { "URL must not contain NUL" }
+            val parsed = parseUri(url, "network URL")
+            require(parsed.scheme?.lowercase() in setOf("https", "http") && !parsed.host.isNullOrBlank()) {
+                "Only absolute HTTP(S) network inputs with a host are supported"
+            }
+            require(parsed.userInfo == null) { "Network URLs must not contain embedded credentials" }
+            require(parsed.fragment == null) { "Network URLs must not contain fragments" }
         }
+    }
+
+    private companion object {
+        fun parseUri(value: String, label: String): URI =
+            runCatching { URI(value) }.getOrElse { cause ->
+                throw IllegalArgumentException("Invalid $label", cause)
+            }
     }
 }
 
+/** Common contract implemented by every typed media operation accepted by [FfmpegSdk]. */
 @Serializable
+public sealed interface MediaJob {
+    public val id: String
+    public val output: MediaReference
+    public val overwrite: Boolean
+    public val allowNetworkInput: Boolean
+    public val limits: ResourceLimits
+
+    /** All resources that can be opened as inputs by the execution engine. */
+    public val inputReferences: List<MediaReference>
+
+    /** Media inputs whose duration contributes to progress and resource-limit checks. */
+    public val progressReferences: List<MediaReference>
+        get() = inputReferences
+}
+
+@Serializable
+@SerialName("transcode")
 public data class TranscodeJob(
-    val id: String = UUID.randomUUID().toString(),
+    override val id: String = UUID.randomUUID().toString(),
     val input: MediaReference,
-    val output: MediaReference,
+    override val output: MediaReference,
     val video: VideoSettings = VideoSettings(),
     val audio: AudioSettings = AudioSettings(),
     val container: Container = Container.MP4,
     val trim: TimeRange? = null,
-    val overwrite: Boolean = false,
-    val allowNetworkInput: Boolean = false,
+    override val overwrite: Boolean = false,
+    override val allowNetworkInput: Boolean = false,
     val optimizeForStreaming: Boolean = true,
-) {
+    override val limits: ResourceLimits = ResourceLimits(),
+) : MediaJob {
+    override val inputReferences: List<MediaReference> get() = listOf(input)
+    override val progressReferences: List<MediaReference> get() = listOf(input)
+
     init {
         require(id.isNotBlank()) { "Job id must not be blank" }
         require(input != output) { "Input and output must be different resources" }
@@ -71,6 +112,41 @@ public data class TranscodeJob(
             "At least one output stream is required"
         }
     }
+}
+
+@Serializable
+public data class ResourceLimits(
+    /** Reject an individual probed input longer than this value. */
+    val maxInputDurationMs: Long? = null,
+    /** Reject a multi-input job when the sum of known input durations exceeds this value. */
+    val maxTotalInputDurationMs: Long? = null,
+    /** Reject a video stream whose coded width multiplied by height exceeds this value. */
+    val maxInputPixels: Long? = null,
+    /** Pass an FFmpeg output-size ceiling through `-fs`. */
+    val maxOutputBytes: Long? = null,
+    /** Bound codec/filter worker threads when the selected FFmpeg component honors `-threads`. */
+    val maxThreads: Int? = null,
+) {
+    init {
+        require(maxInputDurationMs == null || maxInputDurationMs > 0) {
+            "Maximum input duration must be positive"
+        }
+        require(maxTotalInputDurationMs == null || maxTotalInputDurationMs > 0) {
+            "Maximum total input duration must be positive"
+        }
+        require(maxInputPixels == null || maxInputPixels > 0) {
+            "Maximum input pixel count must be positive"
+        }
+        require(maxOutputBytes == null || maxOutputBytes > 0) {
+            "Maximum output size must be positive"
+        }
+        require(maxThreads == null || maxThreads in 1..256) {
+            "Maximum thread count must be between 1 and 256"
+        }
+    }
+
+    public val requiresProbe: Boolean
+        get() = maxInputDurationMs != null || maxTotalInputDurationMs != null || maxInputPixels != null
 }
 
 @Serializable
@@ -135,7 +211,7 @@ public enum class StreamMode { COPY, ENCODE, DROP }
 public enum class VideoCodec { H264, HEVC, VP9, AV1, MPEG4 }
 
 @Serializable
-public enum class AudioCodec { AAC, OPUS }
+public enum class AudioCodec { AAC, OPUS, MP3, VORBIS, FLAC, PCM_S16LE }
 
 @Serializable
 public enum class EncoderPreference {
@@ -152,6 +228,10 @@ public enum class Container(public val ffmpegName: String) {
     WEBM("webm"),
     MPEG_TS("mpegts"),
     MOV("mov"),
+    MP3("mp3"),
+    OGG("ogg"),
+    WAV("wav"),
+    FLAC("flac"),
 }
 
 @Serializable

@@ -21,3 +21,11 @@ signing.properties
 .DS_Store
 Thumbs.db
 captures/
+
+# Reproducible FFmpeg source/toolchain caches and generated native artifacts.
+.ffmpeg-cache/
+.ffmpeg-build/
+native-runtime/prebuilt/
+native-runtime/evidence/
+__pycache__/
+*.py[cod]

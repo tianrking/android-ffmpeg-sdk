@@ -19,6 +19,6 @@ rootProject.name = "ffmpeg-android"
 include(
     ":ffmpeg-sdk-core",
     ":ffmpeg-sdk-android",
-    ":ffmpeg-sdk-engine-ffmpegkit",
+    ":ffmpeg-sdk-engine-native",
     ":sample-app",
 )

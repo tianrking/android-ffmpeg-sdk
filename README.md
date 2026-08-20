@@ -10,22 +10,30 @@ A production-oriented FFmpeg SDK and media-processing runtime integration layer 
 > official Android distribution of FFmpeg. FFmpeg is a trademark of Fabrice Bellard, originator of
 > the FFmpeg project. See [Trademarks and non-affiliation](TRADEMARKS.md).
 
-FFmpeg Android turns media work into versioned Kotlin jobs, resolves Android `content://`
-resources without shell interpolation, reports progress and cancellation through coroutines,
-checks device codec capabilities, and keeps the native engine replaceable so applications retain
-control of binary provenance and licensing.
+FFmpeg Android turns media work into versioned Kotlin jobs, cross-compiles the signed upstream
+FFmpeg release for Android, resolves `content://` resources without shell interpolation, reports
+progress and cancellation through coroutines, and records native provenance and licensing.
 
 ## Project status
 
-`0.1.0-SNAPSHOT` is an engineering preview, not a production release.
+`0.2.0-SNAPSHOT` is an engineering preview, not a production release.
 
-- The Kotlin core, Android capability module, FFmpegKit-compatible adapter, and sample app build.
-- Eleven core tests pass and Android Lint reports no issues in the Android modules.
-- The evaluation APKs pass static 16 KB ZIP/ELF alignment and GNU RELRO checks.
-- No Android device was connected for this snapshot. Native execution, output validity, device
-  codecs, SAF providers, lifecycle, thermal behavior, and process death remain release gates.
-- The sample uses an evaluation runtime. Production consumers must supply a pinned, audited,
-  reproducibly built native runtime.
+- The Kotlin core, Java `CompletableFuture` facade, Android capability module, project-owned JNI
+  engine, and sample app build.
+- Thirty-four JVM/local Android tests cover planning, recipes, serialization, orchestration,
+  Java cancellation, runtime policy, limits, and Android request validation.
+- A host FFmpeg 8.1 smoke corpus successfully probes, remuxes, exports H.264/HEVC, extracts audio,
+  creates thumbnails/waveforms, burns subtitles, trims, concatenates, and fully decodes outputs.
+- The source-built release AAR, debug/release APKs, and release AAB contain the exact 36 locked
+  native libraries and embedded provenance manifest. Both APKs pass 16 KB ZIP/ELF checks, and the
+  AAB declares `PAGE_ALIGNMENT_16K`.
+- An Android 13/API 33 arm64 Qualcomm device completed the debug device self-test: the official
+  runtime generated MPEG-4/AAC media, the typed SDK transcoded it through `h264_mediacodec` to
+  H.264/AAC MP4, native probe validated it, and an independent host FFmpeg fully decoded the pulled
+  output. Broader device/SAF, lifecycle, thermal, 16 KiB-system, and process-death matrices remain
+  release gates.
+- The runtime lock pins official FFmpeg `n9.0.1`, its signed release archive, NDK r29, four ABIs,
+  configure flags, the runner patch, bridge sources, and every produced library hash.
 
 The exact boundary is recorded in [`docs/VERIFICATION_REPORT.md`](docs/VERIFICATION_REPORT.md) and
 [`docs/RELEASE_GATES.md`](docs/RELEASE_GATES.md).
@@ -33,16 +41,16 @@ The exact boundary is recorded in [`docs/VERIFICATION_REPORT.md`](docs/VERIFICAT
 ## Why this project exists
 
 The FFmpeg project publishes source code rather than an official Android AAR, Maven package, or
-Kotlin SDK. Existing Android wrappers make FFmpeg commands callable, but an application still owns
-Android-specific concerns such as SAF, non-seekable providers, process lifecycle, hardware codec
-variance, 16 KB page sizes, binary provenance, and LGPL/GPL compliance.
+Kotlin SDK. This repository therefore consumes the signed official source directly and owns only
+the Android build recipe, a two-symbol fftools runner patch, and the JNI/Kotlin integration layer.
+It does not consume FFmpegKit, FFmpegKitNext, or a community FFmpeg binary.
 
 FFmpeg Android focuses on that product boundary. It is intentionally not a renamed FFmpeg binary,
 an FFmpeg source fork, or another API that accepts only an interpolated command string.
 
 Use it when an Android application needs several of the following:
 
-- FFprobe metadata, broad demux/mux support, stream copy, subtitles, or FFmpeg filters;
+- public-libav media metadata, broad demux/mux support, stream copy, subtitles, or FFmpeg filters;
 - reliable `content://` input and output instead of storage-path workarounds;
 - explicit hardware/software encoder selection with observable retry behavior;
 - cancellable and structured jobs instead of shell command construction;
@@ -55,16 +63,25 @@ FFmpeg Android should earn the additional native size and attack surface.
 ## Current capabilities
 
 - Versioned, serializable Kotlin transcode jobs.
+- A sealed typed job family for transcode, thumbnail, waveform, subtitle burn-in, and concat.
+- Typed constructors for remux, H.264/HEVC export, audio extraction/transcode, and trim.
 - Engine-neutral planning and execution contracts.
 - Structured argument arrays with no shell interpolation.
 - `FilePath`, `ContentUri`, and explicitly opted-in `NetworkUrl` resources.
-- FFprobe format and stream inspection.
+- Public `libavformat` format and stream inspection with bounded JSON.
+- Kotlin coroutine/Flow APIs plus a Java `CompletableFuture`, callback, and cancellable task facade.
 - Coroutine events for attempts, logs, progress, completion, failure, and cancellation.
 - Explicit hardware/software encoder candidates without silent codec changes.
-- Runtime FFmpeg major allow-list and encoder/decoder discovery.
+- Runtime FFmpeg major allow-list plus encoder, decoder, filter, muxer, and demuxer discovery.
 - Runtime build-configuration checks for GPL and nonfree options.
 - Android `MediaCodecList` capability survey.
-- SAF resolution through the FFmpegKit-compatible protocol bridge.
+- SAF file-descriptor seek probing, bounded fallback staging, and seekable auxiliary resources for
+  filters such as `subtitles`.
+- Commit-after-success file/content output staging with cleanup after failure or cancellation.
+- Per-input duration/pixel limits plus output-byte, thread, aggregate per-session staging-byte, and
+  concurrent-session limits.
+- Network downloads disabled by default; explicit use is bounded by scheme/host, address,
+  redirect, timeout, and byte policies.
 - Bounded captured output and session-specific cancellation.
 
 This list describes implemented APIs. It does not replace the device and release evidence required
@@ -76,13 +93,12 @@ by [`docs/RELEASE_GATES.md`](docs/RELEASE_GATES.md).
 | --- | --- | --- |
 | `ffmpeg-sdk-core` | Job schema, planner, engine contract, events, retries | No |
 | `ffmpeg-sdk-android` | Runtime Android `MediaCodec` capability survey | No |
-| `ffmpeg-sdk-engine-ffmpegkit` | Adapter for the `com.arthenica.ffmpegkit` API | No (`compileOnly`) |
-| `sample-app` | SAF input/output and cancellable H.264 export | Evaluation runtime only |
+| `ffmpeg-sdk-engine-native` | JNI runner, probe, capabilities, SAF/network policy | Generated official runtime |
+| `sample-app` | SAF input/output and cancellable H.264 MediaCodec export | Generated official runtime |
 
-The adapter compiles against a compatible community artifact to verify the Java API, but the
-published SDK POM does not pull that native artifact into consumer applications. A production app
-should build and pin its own [FFmpegKitNext](https://github.com/arthenica/ffmpeg-kit-next) AAR.
-FFmpegKitNext is also an independent project and is not part of the FFmpeg project.
+`native-runtime/ffmpeg.lock.json` is the trust root for the generated runtime. The build verifies
+the FFmpeg release PGP signature and every input hash before compilation, then verifies each ELF's
+SONAME, 16 KiB LOAD alignment, GNU_RELRO, and absence of TEXTREL.
 
 ## Quick start
 
@@ -91,28 +107,16 @@ coordinates are:
 
 ```kotlin
 dependencies {
-    implementation("io.github.tianrking.ffmpegsdk:ffmpeg-sdk-core:0.1.0")
-    implementation("io.github.tianrking.ffmpegsdk:ffmpeg-sdk-android:0.1.0")
-    implementation("io.github.tianrking.ffmpegsdk:ffmpeg-sdk-engine-ffmpegkit:0.1.0")
-
-    // The application chooses this runtime. Prefer a locally built, pinned FFmpegKitNext AAR.
-    implementation(files("libs/ffmpeg-kit-next-android-8.1.1.aar"))
+    implementation("io.github.tianrking.ffmpegsdk:ffmpeg-sdk-core:0.2.0")
+    implementation("io.github.tianrking.ffmpegsdk:ffmpeg-sdk-android:0.2.0")
+    implementation("io.github.tianrking.ffmpegsdk:ffmpeg-sdk-engine-native:0.2.0")
 }
 ```
 
 Create an explicitly licensed engine and a typed job:
 
 ```kotlin
-val sdk = FfmpegSdk(
-    FfmpegKitEngine(
-        applicationContext,
-        FfmpegKitRuntimePolicy(
-            runtimeLicense = RuntimeLicense.LGPL,
-            allowedFfmpegMajorVersions = setOf(8),
-            distributionLabel = "our reproducible FFmpegKitNext build",
-        ),
-    ),
-)
+val sdk = FfmpegSdk(OfficialFfmpegEngine(applicationContext))
 
 val job = TranscodeJob(
     input = MediaReference.ContentUri(inputUri.toString()),
@@ -125,6 +129,26 @@ task.events.collect { event -> /* render progress and attempts */ }
 val result = task.result.await()
 ```
 
+Java uses the same engine and typed jobs without calling suspend functions directly:
+
+```java
+try (FfmpegJavaSdk sdk = new FfmpegJavaSdk(new OfficialFfmpegEngine(context))) {
+    JavaMediaTask task = sdk.execute(job, event -> render(event));
+    task.getFuture().thenAccept(result -> renderResult(result));
+}
+```
+
+The high-value operations remain typed rather than accepting arbitrary command text:
+
+```kotlin
+val remux = MediaRecipes.remux(input, output, Container.MP4, overwrite = true)
+val audio = MediaRecipes.extractAudio(input, output, AudioCodec.FLAC, Container.FLAC)
+val thumbnail = ThumbnailJob(input = input, output = output, positionMs = 5_000)
+val waveform = WaveformJob(input = input, output = output, width = 1_280, height = 320)
+val subtitled = SubtitleBurnJob(input = input, subtitles = subtitle, output = output)
+val joined = ConcatJob(segments = clips, output = output, targetWidth = 1_920, targetHeight = 1_080)
+```
+
 No command is assembled through a shell. Paths, URLs, and SAF URIs remain typed resource arguments
 until the selected engine resolves them.
 
@@ -132,20 +156,32 @@ until the selected engine resolves them.
 
 - `minSdk 24`, `compileSdk 37`, and `targetSdk 36` in the sample. Target 37 is a separate behavior
   validation gate, not an automatic production claim.
-- FFmpeg `8.x` is the audited runtime line for v0.1. FFmpeg `9.x` remains canary-only until its
-  Android wrapper and device matrix pass the same gates.
-- `arm64-v8a` and `x86_64` are the sample defaults. Production apps should use ABI splits or App
-  Bundles rather than a universal APK.
-- Network input is denied per job and by the runtime unless explicitly enabled by both.
+- FFmpeg `n9.0.1` / commit `bf1b838f2ab88b4f8fd83443325c782ea0e0f7fa` is the locked runtime.
+- `arm64-v8a`, `armeabi-v7a`, `x86_64`, and `x86` are built. Production apps should use ABI splits
+  or App Bundles rather than a universal APK.
+- Network input is denied per job and by the runtime unless explicitly enabled by both. The engine
+  defaults to downloading a bounded HTTPS resource into cache; HTTP, host scope, and direct FFmpeg
+  protocol access are separate decisions, and direct FFmpeg networking requires a separately
+  audited runtime profile because `core-lgpl` is compiled with `--disable-network`.
+- Content inputs that cannot seek are copied into a bounded cache file. Outputs are encoded to a
+  staging file and committed only after FFmpeg succeeds; a `content://` provider commit is safer
+  than direct encoding but cannot be universally atomic across providers. Transactional
+  `content://` output therefore requires `overwrite = true` as an explicit acknowledgement;
+  filesystem `overwrite = false` uses a no-replace commit.
 - H.264/H.265 software fallbacks (`libx264`/`libx265`) are blocked unless the runtime is explicitly
   declared GPL. The SDK does not change the requested codec merely to make a job pass.
-- The engine runtime is not transitively bundled. Binary provenance remains an application
-  decision until reproducible project-owned runtime profiles are released.
+- MediaCodec video attempts explicitly request NV12 encoder input. A physical Qualcomm device
+  rejected FFmpeg's default planar `yuv420p` input but completed the same H.264 job with NV12.
+- The `core-lgpl` build does not enable GPL, nonfree, or external codec libraries. H.264/HEVC/AV1
+  hardware encoding comes from FFmpeg's MediaCodec encoders; optional software-codec profiles must
+  be separate coordinates with separate license evidence. The official-only profile therefore has
+  no libass subtitle filter, libx264, or libx265; typed jobs fail capability preflight instead of
+  silently changing behavior.
 
 ## Build
 
-Requirements: JDK 17, Android SDK Platform 37.0, Build Tools 36.0.0, and NDK r29 for the full native
-verification script.
+Requirements: JDK 17, Android SDK Platform 37, Build Tools 36.0.0, NDK r29, and Linux/WSL2 for
+the official native cross-build.
 
 ```shell
 git clone git@github.com:tianrking/android-ffmpeg-sdk.git
@@ -154,7 +190,18 @@ cd android-ffmpeg-sdk
 
 ```powershell
 $env:ANDROID_SDK_ROOT = "C:\path\to\android-sdk"
-.\gradlew.bat test lint assembleDebug assembleRelease
+.\scripts\build-official-ffmpeg.ps1
+.\gradlew.bat test lint assembleDebug assembleRelease bundleRelease
+```
+
+The PowerShell wrapper invokes `native-runtime/scripts/build-android.sh` in WSL2. Linux users can
+run that Bash script directly. Generated headers, all four ABI trees, and `manifest.json` appear in
+`native-runtime/prebuilt/` and are packaged by `ffmpeg-sdk-engine-native`.
+
+Run the optional host-FFmpeg recipe smoke corpus (this is not Android device evidence):
+
+```powershell
+.\scripts\verify-recipes.ps1
 ```
 
 Verify a produced APK's ZIP and ELF page alignment:
@@ -165,6 +212,19 @@ Verify a produced APK's ZIP and ELF page alignment:
   -AndroidSdkRoot $env:ANDROID_SDK_ROOT `
   -NdkVersion 29.0.14206865
 ```
+
+Run the debug-only, intent-driven Android device self-test after installing the debug APK:
+
+```powershell
+adb install -r .\sample-app\build\outputs\apk\debug\sample-app-debug.apk
+adb shell am start -W `
+  -n io.github.tianrking.ffmpegsdk.sample/.DeviceSelfTestActivity
+adb shell run-as io.github.tianrking.ffmpegsdk.sample `
+  cat files/ffmpeg-sdk-device-self-test.json
+```
+
+The test generates real media, performs a typed H.264 MediaCodec transcode through JNI, probes the
+output, and writes a machine-readable result. It is compiled only into the debug variant.
 
 ## Documentation
 
@@ -194,17 +254,15 @@ affiliation or endorsement.
 | FFmpeg legal and license guidance | [ffmpeg.org/legal.html](https://ffmpeg.org/legal.html) |
 | FFmpeg security advisories | [ffmpeg.org/security.html](https://ffmpeg.org/security.html) |
 
-Related but independent projects:
+Related but independent project:
 
-- [FFmpegKitNext](https://github.com/arthenica/ffmpeg-kit-next) — source-build wrapper used by the
-  current engine adapter; not affiliated with the FFmpeg project.
 - [Android Media3 Transformer](https://developer.android.com/media/media3/transformer) — official
   Android media transformation API and a planned complementary engine.
 
 ## Licensing and naming
 
 The Kotlin/Android SDK source in this repository is licensed under
-[Apache License 2.0](LICENSE). FFmpeg, FFmpegKitNext, and optional codec libraries retain their own
+[Apache License 2.0](LICENSE). FFmpeg and optional codec libraries retain their own
 copyrights and licenses. A native FFmpeg build may be LGPL or GPL depending on its configuration;
 the Apache license of this repository does not change those obligations and does not grant codec
 patent rights.

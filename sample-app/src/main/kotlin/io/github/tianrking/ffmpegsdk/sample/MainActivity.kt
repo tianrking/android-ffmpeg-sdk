@@ -18,10 +18,8 @@ import io.github.tianrking.ffmpegsdk.core.FfmpegSdk
 import io.github.tianrking.ffmpegsdk.core.MediaReference
 import io.github.tianrking.ffmpegsdk.core.MediaResult
 import io.github.tianrking.ffmpegsdk.core.MediaTask
-import io.github.tianrking.ffmpegsdk.core.RuntimeLicense
 import io.github.tianrking.ffmpegsdk.core.TranscodeJob
-import io.github.tianrking.ffmpegsdk.engine.ffmpegkit.FfmpegKitEngine
-import io.github.tianrking.ffmpegsdk.engine.ffmpegkit.FfmpegKitRuntimePolicy
+import io.github.tianrking.ffmpegsdk.engine.nativeffmpeg.OfficialFfmpegEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -142,14 +140,7 @@ class MainActivity : ComponentActivity() {
     private fun startTranscode(outputUri: Uri) {
         val source = checkNotNull(inputUri)
         val sdk = FfmpegSdk(
-            FfmpegKitEngine(
-                applicationContext,
-                FfmpegKitRuntimePolicy(
-                    runtimeLicense = RuntimeLicense.LGPL,
-                    allowedFfmpegMajorVersions = setOf(8),
-                    distributionLabel = "evaluation Maven runtime",
-                ),
-            ),
+            OfficialFfmpegEngine(applicationContext),
         )
         val job = TranscodeJob(
             input = MediaReference.ContentUri(source.toString()),
@@ -164,12 +155,17 @@ class MainActivity : ComponentActivity() {
         startButton.isEnabled = false
         progress.isIndeterminate = true
 
-        scope.launch {
+        val eventCollector = scope.launch {
             task.events.collect(::renderEvent)
         }
         scope.launch {
-            val result = runCatching { task.result.await() }
-            renderResult(result.getOrNull(), result.exceptionOrNull())
+            try {
+                val result = runCatching { task.result.await() }
+                renderResult(result.getOrNull(), result.exceptionOrNull())
+            } finally {
+                // SharedFlow does not complete when its source channel closes.
+                eventCollector.cancel()
+            }
         }
     }
 

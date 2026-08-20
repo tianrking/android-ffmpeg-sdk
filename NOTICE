@@ -5,9 +5,11 @@ FFmpeg Android is an independent project. It is not affiliated with, sponsored b
 or endorsed by the FFmpeg project or its contributors. FFmpeg is a trademark of Fabrice Bellard,
 originator of the FFmpeg project. Official FFmpeg resources are published at https://ffmpeg.org/.
 
-This repository's SDK source is licensed under Apache License 2.0. It does not distribute FFmpeg,
-FFmpegKitNext, or a native runtime as part of its published library modules.
+This repository's SDK source and JNI bridge are licensed under Apache License 2.0. Generated runtime
+artifacts dynamically link FFmpeg built from its signed upstream source. FFmpeg retains its own
+copyright and LGPL license; the exact source, patch, build recipe, configuration, and notices must
+accompany every binary distribution.
 
-The local sample build may resolve third-party evaluation dependencies. Those dependencies retain
-their own copyrights, licenses, notices, and source-offer requirements and are not covered by the
-Apache License for this repository.
+The patch under native-runtime/patches modifies FFmpeg's fftools source and is distributed under
+the same applicable LGPL terms as that upstream source; the repository's Apache license does not
+relicense FFmpeg or that derivative patch.

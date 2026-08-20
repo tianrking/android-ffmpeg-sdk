@@ -1,31 +1,27 @@
 {
   "schemaVersion": 1,
-  "profile": "minimal-lgpl",
+  "profile": "core-lgpl",
   "ffmpeg": {
-    "version": "8.1.2",
-    "sourceUrl": "",
-    "sourceSha256": "",
-    "signatureVerified": false,
-    "gitCommit": "",
+    "version": "9.0.1",
+    "sourceUrl": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz",
+    "sourceSha256": "cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635",
+    "signatureVerified": true,
+    "gitCommit": "bf1b838f2ab88b4f8fd83443325c782ea0e0f7fa",
     "configureArguments": []
   },
-  "wrapper": {
-    "project": "FFmpegKitNext",
-    "version": "8.1.1",
-    "gitCommit": ""
-  },
+  "wrapper": null,
   "toolchain": {
     "androidCompileSdk": "37.0",
     "androidTargetSdk": "36",
     "ndk": "29.0.14206865",
-    "cmake": "",
+    "cmake": "not-used-for-upstream-libraries",
     "java": "17",
-    "nixProfile": ""
+    "buildRecipe": "native-runtime/scripts/build-android.sh"
   },
-  "abis": ["arm64-v8a", "x86_64"],
+  "abis": ["arm64-v8a", "armeabi-v7a", "x86_64", "x86"],
   "externalLibraries": [],
   "patches": [],
-  "licenses": ["LGPL-3.0-or-later"],
+  "licenses": ["LGPL-2.1-or-later"],
   "artifacts": [
     {
       "path": "",

@@ -11,11 +11,11 @@ android {
         applicationId = "io.github.tianrking.ffmpegsdk.sample"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
 
         ndk {
-            abiFilters += listOf("arm64-v8a", "x86_64")
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64", "x86")
         }
     }
 
@@ -48,12 +48,8 @@ android {
 dependencies {
     implementation(project(":ffmpeg-sdk-core"))
     implementation(project(":ffmpeg-sdk-android"))
-    implementation(project(":ffmpeg-sdk-engine-ffmpegkit"))
+    implementation(project(":ffmpeg-sdk-engine-native"))
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.activity)
 
-    // Evaluation runtime only. Production applications should pin a source-built, audited AAR.
-    implementation(libs.ffmpegkit.full)
-    // The evaluated community POM omits this FFmpegKit runtime dependency.
-    implementation(libs.smart.exception)
 }

@@ -1,0 +1,7 @@
+FFMPEG_SDK_1.0 {
+    global:
+        ffmpeg_sdk_execute;
+        ffmpeg_sdk_cancel;
+    local:
+        *;
+};

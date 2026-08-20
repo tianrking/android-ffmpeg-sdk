@@ -88,7 +88,7 @@ class FfmpegSdkTest {
         override suspend fun descriptor(): EngineDescriptor = EngineDescriptor(
             name = "fake",
             wrapperVersion = "1",
-            ffmpegVersion = "8.1.2",
+            ffmpegVersion = "9.0.1",
             distribution = "test",
             runtimeLicense = RuntimeLicense.GPL,
         )
@@ -123,7 +123,7 @@ class FfmpegSdkTest {
                 durationMs = 10_000,
                 formatNames = setOf("mov", "mp4"),
                 bitrate = 1_000_000,
-                streams = emptyList(),
+                streams = listOf(MediaStream(0, "video", "h264", width = 1_280, height = 720)),
                 rawJson = "{}",
             )
         }

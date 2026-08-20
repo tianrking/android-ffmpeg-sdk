@@ -10,7 +10,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
 
     steps:
       - uses: actions/checkout@v7
@@ -24,18 +24,36 @@ jobs:
       - uses: android-actions/setup-android@v4
 
       - name: Install Android SDK and NDK
-        run: sdkmanager "platforms;android-37.0" "build-tools;36.0.0" "platform-tools" "ndk;29.0.14206865"
+        run: sdkmanager "platforms;android-37" "build-tools;36.0.0" "platform-tools" "ndk;29.0.14206865"
 
       - name: Validate Gradle wrapper
         uses: gradle/actions/wrapper-validation@v6
 
+      - name: Build signed official FFmpeg runtime
+        run: |
+          bash ./native-runtime/scripts/build-android.sh \
+            --ndk "$ANDROID_SDK_ROOT/ndk/29.0.14206865" \
+            --abis arm64-v8a,armeabi-v7a,x86_64,x86
+
       - name: Test, lint, and assemble
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon test lint assembleDebug assembleRelease \
+          ./gradlew --no-daemon test lint assembleDebug assembleRelease bundleRelease \
             :ffmpeg-sdk-core:generatePomFileForMavenPublication \
             :ffmpeg-sdk-android:generatePomFileForReleasePublication \
-            :ffmpeg-sdk-engine-ffmpegkit:generatePomFileForReleasePublication
+            :ffmpeg-sdk-engine-native:generatePomFileForReleasePublication
+
+      - name: Verify 16 KB APK and ELF alignment
+        shell: pwsh
+        run: |
+          ./scripts/verify-16kb.ps1 `
+            -Apk ./sample-app/build/outputs/apk/debug/sample-app-debug.apk `
+            -AndroidSdkRoot $env:ANDROID_SDK_ROOT `
+            -NdkVersion 29.0.14206865
+          ./scripts/verify-16kb.ps1 `
+            -Apk ./sample-app/build/outputs/apk/release/sample-app-release-unsigned.apk `
+            -AndroidSdkRoot $env:ANDROID_SDK_ROOT `
+            -NdkVersion 29.0.14206865
 
       - name: Upload build evidence
         if: always()
@@ -46,4 +64,8 @@ jobs:
           path: |
             **/build/reports/**
             **/build/outputs/**/*.aar
+            **/build/publications/**/pom-default.xml
+            native-runtime/prebuilt/manifest.json
             sample-app/build/outputs/apk/debug/*.apk
+            sample-app/build/outputs/apk/release/*.apk
+            sample-app/build/outputs/bundle/release/*.aab

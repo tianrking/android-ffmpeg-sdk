@@ -27,6 +27,7 @@ android {
 
 dependencies {
     api(project(":ffmpeg-sdk-core"))
+    testImplementation(kotlin("test-junit"))
 }
 
 afterEvaluate {
