@@ -1,0 +1,28 @@
+<resources>
+    <string name="app_name">FFmpeg Android Lab</string>
+    <string name="app_subtitle">SAF input/output · typed job · cancellable execution · explicit MediaCodec</string>
+    <string name="select_input">1. Select input video</string>
+    <string name="export_h264">2. Export H.264 MP4</string>
+    <string name="cancel_job">Cancel active job</string>
+    <string name="output_filename">ffmpeg-sdk-output.mp4</string>
+    <string name="input_selected">Input selected\n%1$s</string>
+    <string name="device_encoder">Device H.264 encoder: %1$s</string>
+    <string name="encoder_unavailable">not available for 1080p30 request</string>
+    <string name="probe_status">Probed: %1$s ms, %2$s</string>
+    <string name="unknown">unknown</string>
+    <plurals name="planned_status">
+        <item quantity="one">Planned %1$d explicit encoder attempt</item>
+        <item quantity="other">Planned %1$d explicit encoder attempts</item>
+    </plurals>
+    <string name="attempt_status">Attempt %1$d: %2$s</string>
+    <string name="stream_copy">stream copy</string>
+    <plurals name="encoding_status">
+        <item quantity="one">Encoding %1$s%% · %2$.2fx · %3$d byte</item>
+        <item quantity="other">Encoding %1$s%% · %2$.2fx · %3$d bytes</item>
+    </plurals>
+    <string name="execution_interrupted">Execution interrupted: %1$s</string>
+    <string name="export_complete">Export complete (attempt %1$d)</string>
+    <string name="export_cancelled">Export cancelled</string>
+    <string name="export_failed">Export failed: %1$s</string>
+    <string name="no_result">No result</string>
+</resources>

@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "profile": "minimal-lgpl",
+  "ffmpeg": {
+    "version": "8.1.2",
+    "sourceUrl": "",
+    "sourceSha256": "",
+    "signatureVerified": false,
+    "gitCommit": "",
+    "configureArguments": []
+  },
+  "wrapper": {
+    "project": "FFmpegKitNext",
+    "version": "8.1.1",
+    "gitCommit": ""
+  },
+  "toolchain": {
+    "androidCompileSdk": "37.0",
+    "androidTargetSdk": "36",
+    "ndk": "29.0.14206865",
+    "cmake": "",
+    "java": "17",
+    "nixProfile": ""
+  },
+  "abis": ["arm64-v8a", "x86_64"],
+  "externalLibraries": [],
+  "patches": [],
+  "licenses": ["LGPL-3.0-or-later"],
+  "artifacts": [
+    {
+      "path": "",
+      "sha256": "",
+      "sizeBytes": 0
+    }
+  ],
+  "verification": {
+    "elf16KbAligned": false,
+    "zip16KbAligned": false,
+    "relro": false,
+    "sbomPath": "",
+    "deviceMatrixReport": ""
+  }
+}
