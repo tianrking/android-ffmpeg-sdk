@@ -88,7 +88,7 @@ The clean command was:
   :ffmpeg-sdk-engine-native:generatePomFileForReleasePublication
 ```
 
-Result: `BUILD SUCCESSFUL` in 2m 10s; 285 tasks were executed or restored from the clean build's
+Result: `BUILD SUCCESSFUL` in 2m 56s; 285 tasks were executed or restored from the clean build's
 dependency cache. Current-module reports contain 34 tests, zero failures, zero errors, and zero
 skips:
 
@@ -123,11 +123,11 @@ contains `uncompress_native_libraries.enabled: true` and
 | --- | ---: | --- |
 | Runtime manifest | 13,298 | `1436e066af3bb3c5afc25cc623d633593095a4b1d0d07d0ac8aaf83f96414385` |
 | Core JAR | 292,199 | `dbbbf7a0abe6b1e399829a569853c2260e657bcc2e0edc79e434315396f06ec9` |
-| Android release AAR | 34,009 | `7593a8544f2f31dd57ce2c5362378c64bfd99265fe21cd539bb4114f69080b8f` |
-| Official native release AAR | 43,256,500 | `9f60e46b186f3f93394e7e189c576bd06772c2a76f3499edf8fa42d38f2987d9` |
-| Sample debug APK | 97,244,176 | `6e2f5a2d1c46251c04dba1f99bc49ce47eacba6703c7fcb2099dd593bb5904ce` |
-| Sample release APK (unsigned) | 94,382,708 | `9342845573dd528dd6c96ab2cc15df3db1158613b3638f300dd9f93555835590` |
-| Sample release AAB | 43,743,860 | `1f10459628180a7f8add33334005c54404812d01440b99cfe8776c6c734c1f1d` |
+| Android release AAR | 34,002 | `ea1d3de46edc47c4d2aa5b38e2ca2f3bb2c0cba0f58298c331751eece9c22973` |
+| Official native release AAR | 43,256,493 | `753d6694e8f522a01e95252b33c3da912e7a2ed1fe9b3a91ff1b547bd9928aa8` |
+| Sample debug APK | 97,244,176 | `6557e3c913f35bfd3373e2bc7797689d54a71a85f7fad5daa80b2d135e529b54` |
+| Sample release APK (unsigned) | 94,382,708 | `95be98ff774acc76b219855b7c41295e9c4bf3add822ffdadca248f1ecc5a6f0` |
+| Sample release AAB | 43,743,860 | `2e1d625919bb3cf37d97caa3b3c075ef9199999cd8270754a0bd7fb10f3c9f30` |
 
 These hashes identify this local snapshot. Signing an APK/AAB or rebuilding Kotlin artifacts can
 legitimately change their container hashes; the embedded native manifest remains the native
