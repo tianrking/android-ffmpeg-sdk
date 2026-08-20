@@ -40,6 +40,10 @@ passed after downloading the artifacts again. Three Maven metadata files request
 fresh resolver were added to strict verification; their SHA-256 values were independently matched
 against the corresponding files downloaded directly from Maven Central.
 
+The Linux-specific AAPT2 binary requested by the hosted CI runner is pinned separately. Its SHA-256
+was calculated after downloading the artifact from Google Maven and matched Google Maven's
+published `.sha256` file.
+
 ```powershell
 .\scripts\verify-16kb.ps1 `
   -Apk .\sample-app\build\outputs\apk\debug\sample-app-debug.apk `

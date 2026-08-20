@@ -15,5 +15,6 @@ All notable changes will be documented here. The project follows Semantic Versio
   build-configuration attestation, bounded output, and network deny-by-default.
 - Added API 37 / target 36 sample application using Android document providers.
 - Added dependency checksum verification, build/lint/R8 CI, and 16 KB ELF/ZIP/RELRO scripts.
-- Added Maven metadata checksums required by a clean Linux/CI dependency resolution.
+- Added platform-specific artifact and Maven metadata checksums required by clean Linux/CI
+  dependency resolution.
 - Added technical decision, architecture, compliance, security, and release-gate documentation.
